@@ -9,6 +9,7 @@ import Editor from "./components/Editor";
 import EntryList from "./components/EntryList";
 import TagView from "./components/TagView";
 import DetailView from "./components/DetailView";
+import CalendarView from "./components/CalendarView";
 
 // 4. 主程序
 const App = () => {
@@ -155,8 +156,25 @@ const App = () => {
   };
 
   // 路由控制
-  const startEdit = (entry = null) => {
-    setCurrentEntry(entry);
+  const startEdit = (payload = null) => {
+    // 场景 A：从日历点击空白格传入了日期字符串 (例如 "2026-03-20")
+    if (typeof payload === "string") {
+      setCurrentEntry({
+        id: generateId(),
+        date: payload, // 直接锁定日历传来的日期
+        title: "",
+        blocks: [{ id: generateId(), tag: "schedule", content: "" }],
+      });
+    }
+    // 场景 B：点击列表进入编辑 (传入的是已有的 entry 对象)
+    else if (payload && typeof payload === "object") {
+      setCurrentEntry(payload);
+    }
+    // 场景 C：点击顶部的“写日记” (传入 null)
+    else {
+      setCurrentEntry(null); // Editor 内部会默认处理为“今天”
+    }
+
     setView("edit");
   };
   const openDetail = (entry = null) => {
@@ -169,16 +187,22 @@ const App = () => {
     setView("tag");
   };
 
+  const quickEdit = (dateStr) => {
+    setCurrentEntry({ date: dateStr, title: "", blocks: [] }); // 创建一个带日期的新日记对象
+    setView("edit");
+  };
+
   return (
     <div className="min-h-screen pb-10">
       {/* 侧边栏/导航栏 - 移动端适配为顶部，PC端在侧边会更帅，这里简化为顶部 */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 mb-8">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+          {/* 左侧 Logo 区域 */}
           <div
-            className="flex items-center gap-3 cursor-pointer"
+            className="flex items-center gap-3 cursor-pointer group"
             onClick={() => setView("list")}
           >
-            <div className="bg-black text-white w-8 h-8 rounded-lg flex items-center justify-center font-bold">
+            <div className="bg-black text-white w-8 h-8 rounded-lg flex items-center justify-center font-bold group-hover:rotate-12 transition-transform">
               L
             </div>
             <h1 className="text-xl font-bold tracking-tight text-gray-900">
@@ -186,40 +210,86 @@ const App = () => {
             </h1>
           </div>
 
-          {(view === "list" || view === "tag") && (
-            <div className="flex gap-4">
-              <div className="hidden sm:flex gap-1">
+          {/* 右侧操作区域：仅在主视图（列表、日历、标签）时显示 */}
+          {(view === "list" ||
+            view === "calendar" ||
+            view === "tag" ||
+            view == "detail") && (
+            <div className="flex items-center gap-3 md:gap-4">
+              {/* 1. 视图切换器 (Segmented Control) */}
+              <div className="flex bg-gray-100 p-1 rounded-xl border border-gray-200">
+                <button
+                  onClick={() => setView("list")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+                    view === "list"
+                      ? "bg-white text-black shadow-sm"
+                      : "text-gray-400 hover:text-gray-600"
+                  }`}
+                  title="列表视图"
+                >
+                  <i className="fas fa-list-ul"></i>
+                  <span className="hidden lg:inline">列表</span>
+                </button>
+                <button
+                  onClick={() => setView("calendar")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+                    view === "calendar"
+                      ? "bg-white text-black shadow-sm"
+                      : "text-gray-400 hover:text-gray-600"
+                  }`}
+                  title="日历视图"
+                >
+                  <i className="fas fa-calendar-alt"></i>
+                  <span className="hidden lg:inline">日历</span>
+                </button>
+              </div>
+
+              {/* 2. 标签快捷过滤 (仅在较大屏幕显示) */}
+              <div className="hidden sm:flex gap-1 border-r border-gray-200 pr-3 mr-1">
                 {TAG_OPTIONS.map((tag) => (
                   <button
                     key={tag.id}
                     onClick={() => openTagView(tag.id)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-800 transition-all"
+                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
+                      activeTag === tag.id ? "bg-gray-200" : "hover:bg-gray-100"
+                    }`}
                     title={`查看所有${tag.label}`}
                   >
                     <i
-                      className={`fas fa-circle text-[8px] ${tag.color.split(" ")[1]}`}
+                      className={`fas fa-circle text-[6px] ${tag.color.split(" ")[1]}`}
                     ></i>
                   </button>
                 ))}
               </div>
-              <button
-                onClick={() => startEdit()}
-                className="bg-black hover:bg-gray-800 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
-              >
-                <i className="fas fa-plus"></i> 写日记
-              </button>
-              <button
-                onClick={() => handleExportData()}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
-              >
-                <i className="fas fa-download mr-2"></i> 导出
-              </button>
-              <button
-                onClick={handleImportData}
-                className="bg-gray-100 hover:bg-gray-800 text-gray-800 px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
-              >
-                <i className="fas fa-upload mr-2"></i> 导入
-              </button>
+
+              {/* 3. 功能按钮组 */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => startEdit()}
+                  className="bg-black hover:bg-gray-800 text-white px-3 md:px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 shadow-lg shadow-gray-200"
+                >
+                  <i className="fas fa-plus text-xs"></i>
+                  <span className="hidden sm:inline">写日记</span>
+                </button>
+
+                {/* 导入/导出隐藏文字，仅保留图标以节省空间 */}
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => handleExportData()}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-800 w-9 h-9 flex items-center justify-center rounded-lg transition-all"
+                    title="导出备份"
+                  >
+                    <i className="fas fa-download text-xs"></i>
+                  </button>
+                  <button
+                    onClick={handleImportData}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-800 w-9 h-9 flex items-center justify-center rounded-lg transition-all"
+                    title="导入备份"
+                  >
+                    <i className="fas fa-upload text-xs"></i>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -233,6 +303,17 @@ const App = () => {
             entries={entries}
             onEdit={openDetail}
             onViewTag={openTagView}
+          />
+        )}
+        {/*  当 view 等于 "calendar" 时，渲染一个 CalendarView组件*/}
+        {view === "calendar" && (
+          <CalendarView
+            entries={entries}
+            onViewDetail={(e) => {
+              setCurrentEntry(e);
+              setView("detail");
+            }}
+            onQuickEdit={quickEdit}
           />
         )}
         {/*  当 view 等于 "edit" 时，渲染一个 Editor组件*/}

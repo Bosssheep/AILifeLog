@@ -1,0 +1,25 @@
+# 使用 Node.js 镜像进行构建
+image: node:20
+
+# 缓存 node_modules 提高后续构建速度
+cache:
+  paths:
+    - .pnpm-store
+    - node_modules
+
+pages:
+  stage: deploy
+  before_script:
+    - corepack enable
+    - corepack prepare pnpm@latest --activate
+    - pnpm config set store-dir .pnpm-store
+  script:
+    - pnpm install # 安装依赖
+    - pnpm run build # 执行 Vite 构建
+    - rm -rf public # 移除原有的静态 public 文件夹（防止冲突）
+    - mv dist public # GitLab Pages 强制要求产物必须在名为 public 的文件夹里
+  artifacts:
+    paths:
+      - public # 告诉 GitLab 这个文件夹是需要上线的产物
+  only:
+    - main # 仅在 main 分支提交代码时触发部署

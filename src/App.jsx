@@ -8,7 +8,7 @@ import { TAG_OPTIONS } from "./constants/tags";
 import Editor from "./components/Editor";
 import EntryList from "./components/EntryList";
 import TagView from "./components/TagView";
-// import DetailView from "./components/DetailView"; // 预留
+import DetailView from "./components/DetailView";
 
 // 4. 主程序
 const App = () => {
@@ -159,6 +159,10 @@ const App = () => {
     setCurrentEntry(entry);
     setView("edit");
   };
+  const openDetail = (entry = null) => {
+    setCurrentEntry(entry);
+    setView("detail");
+  };
 
   const openTagView = (tagId) => {
     setActiveTag(tagId);
@@ -227,7 +231,7 @@ const App = () => {
         {view === "list" && (
           <EntryList
             entries={entries}
-            onEdit={startEdit}
+            onEdit={openDetail}
             onViewTag={openTagView}
           />
         )}
@@ -245,6 +249,14 @@ const App = () => {
             entries={entries}
             tagId={activeTag}
             onClose={() => setView("list")}
+          />
+        )}
+        {/*  当 view 等于 "tag" 时，渲染一个 DetailView组件*/}
+        {view === "detail" && (
+          <DetailView
+            entry={currentEntry}
+            onBack={() => setView("list")}
+            onEdit={() => setView("edit")} // 从详情页点编辑，再切到编辑器
           />
         )}
       </main>

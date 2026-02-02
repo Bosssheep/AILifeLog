@@ -10,6 +10,7 @@ import EntryList from "./components/EntryList";
 import TagView from "./components/TagView";
 import DetailView from "./components/DetailView";
 import CalendarView from "./components/CalendarView";
+import diaryService from "./api/diaryService";
 
 // 4. 主程序
 const App = () => {
@@ -18,85 +19,78 @@ const App = () => {
   const [currentEntry, setCurrentEntry] = useState(null);
   const [activeTag, setActiveTag] = useState(null);
 
-  // 初始化加载数据
-  useEffect(() => {
-    const saved = localStorage.getItem("lifeLogData");
-    if (saved) {
-      setEntries(
-        JSON.parse(saved).sort((a, b) => new Date(b.date) - new Date(a.date)),
-      );
+  // 1. 获取数据
+  const fetchEntries = async () => {
+    try {
+      const data = await diaryService.getAll();
+      setEntries(data);
+    } catch (err) {
+      alert("读取数据失败");
     }
+  };
+
+  // 2. 保存逻辑
+  const saveEntry = async (newEntry) => {
+    try {
+      if (entries.some((e) => e.id === newEntry.id)) {
+        await diaryService.update(newEntry.id, newEntry);
+      } else {
+        await diaryService.create(newEntry);
+      }
+      await fetchEntries(); // 刷新
+      setView("list");
+      setCurrentEntry(null);
+    } catch (err) {
+      alert("保存失败");
+    }
+  };
+
+  // 3. 删除逻辑
+  const deleteEntry = async (id) => {
+    if (window.confirm("确定要删除这篇日记吗？")) {
+      try {
+        await diaryService.delete(id);
+        await fetchEntries(); // 刷新
+      } catch (err) {
+        alert("删除失败");
+      }
+    }
+  };
+
+  // 页面初始化时调用
+  useEffect(() => {
+    fetchEntries();
   }, []);
 
-  // 保存数据V1版本，仅保存到浏览器缓存
-  const saveEntry = (newEntry) => {
-    let newEntries;
-    if (entries.find((e) => e.id === newEntry.id)) {
-      newEntries = entries.map((e) => (e.id === newEntry.id ? newEntry : e));
-    } else {
-      newEntries = [newEntry, ...entries];
-    }
-    // 排序
-    newEntries.sort((a, b) => new Date(b.date) - new Date(a.date));
+  // // 保存数据V1版本，仅保存到浏览器缓存
+  // const saveEntry = (newEntry) => {
+  //   let newEntries;
+  //   if (entries.find((e) => e.id === newEntry.id)) {
+  //     newEntries = entries.map((e) => (e.id === newEntry.id ? newEntry : e));
+  //   } else {
+  //     newEntries = [newEntry, ...entries];
+  //   }
+  //   // 排序
+  //   newEntries.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    setEntries(newEntries);
-    localStorage.setItem("lifeLogData", JSON.stringify(newEntries));
-    setView("list");
-    setCurrentEntry(null);
-  };
-
-  // 保存数据V2版本，保存到浏览器缓存+自动下载文件本地存储
-  const saveDownloadEntry = (newEntry) => {
-    let newEntries;
-    if (entries.find((e) => e.id === newEntry.id)) {
-      newEntries = entries.map((e) => (e.id === newEntry.id ? newEntry : e));
-    } else {
-      newEntries = [newEntry, ...entries];
-    }
-    newEntries.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    setEntries(newEntries);
-
-    // --- 第一步：保存到浏览器（为了当前网页能立刻读取） ---
-    localStorage.setItem("lifeLogData", JSON.stringify(newEntries));
-
-    // --- 第二步：自动下载 JSON 文件（为了跨浏览器/备份） ---
-    // 准备数据
-    const dataStr = JSON.stringify(newEntries, null, 2);
-    const blob = new Blob([dataStr], {
-      type: "application/json;charset=utf-8",
-    });
-    const url = URL.createObjectURL(blob);
-
-    // 创建虚拟链接进行下载
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    // 文件名包含日期，方便区分
-    link.setAttribute(
-      "download",
-      `LifeLog_自动备份_${new Date().toISOString().split("T")[0]}.json`,
-    );
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    // 返回列表页
-    setView("list");
-    setCurrentEntry(null);
-  };
+  //   setEntries(newEntries);
+  //   localStorage.setItem("lifeLogData", JSON.stringify(newEntries));
+  //   setView("list");
+  //   setCurrentEntry(null);
+  // };
 
   // --- 导出数据功能 ---
-  const handleExportData = () => {
-    // 1. 从 localStorage 获取数据
-    const savedData = localStorage.getItem("lifeLogData");
-    if (!savedData) {
-      alert("暂无数据可导出");
+  const handleExportData = async () => {
+    // 1. 直接从 Service 获取最新数据
+    const data = await diaryService.getAll();
+
+    if (!data || data.length === 0) {
+      alert("服务器中暂无数据可导出");
       return;
     }
 
     // 2. 准备 Blob 对象（文件内容）
-    const dataStr = JSON.stringify(JSON.parse(savedData), null, 2); // 格式化输出，缩进2格
+    const dataStr = JSON.stringify(data, null, 2);
     const blob = new Blob([dataStr], {
       type: "application/json;charset=utf-8",
     });
@@ -113,6 +107,7 @@ const App = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url); // 释放内存
   };
 
   // --- 导入数据功能 ---
@@ -127,20 +122,41 @@ const App = () => {
       const file = e.target.files[0];
       if (!file) return; // 如果没有选择文件，直接返回
 
-      const reader = new FileReader();
-
       // 读取完成后的回调
-      reader.onload = (event) => {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
         try {
           const result = event.target.result;
-          const parsedData = JSON.parse(result);
+          const importedData = JSON.parse(result);
+          if (!Array.isArray(importedData)) {
+            throw new Error("格式错误：导入的数据必须是数组");
+          }
+          // 导入前先确认
+          if (
+            !window.confirm(
+              `准备合并 ${importedData.length} 条数据，相同 ID 将被覆盖，是否继续？`,
+            )
+          ) {
+            return;
+          }
 
-          // 1. 保存到 localStorage
-          localStorage.setItem("lifeLogData", JSON.stringify(parsedData));
+          // 1. 获取当前数据库中所有的 ID，存入 Set 方便快速查找
+          const currentEntries = await diaryService.getAll();
+          const existingIds = new Set(currentEntries.map((e) => e.id));
 
-          // 2. 提示用户并刷新页面以加载新数据
-          alert(`导入成功！共导入 ${parsedData.length} 篇日记。`);
-          window.location.reload(); // 刷新页面
+          // 2. 遍历导入的数据
+          for (const item of importedData) {
+            if (existingIds.has(item.id)) {
+              // 如果 ID 已存在，先删除旧的
+              await diaryService.delete(item.id);
+            }
+            // 插入新数据
+            await diaryService.create(item);
+          }
+
+          // 3. 提示用户并刷新页面以加载新数据
+          alert(`导入成功！合并导入 ${importedData.length} 篇日记。`);
+          await fetchEntries(); // 刷新 UI
         } catch (err) {
           console.error(err);
           alert("文件解析失败，请确认文件格式是否正确。");

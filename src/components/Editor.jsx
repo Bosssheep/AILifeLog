@@ -38,7 +38,7 @@ const Editor = ({ entry, onSave, onCancel }) => {
       date,
       // 如果是老条目，保留原有的 lastModified；如果是新条目，才生成新时间
       lastModified: entry ? entry.lastModified : new Date().toISOString(),
-      blo,
+      blocks,
     });
   };
 

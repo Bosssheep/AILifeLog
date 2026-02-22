@@ -9,6 +9,7 @@
     "server": "node server/index.js",
     "start": "node server/index.js",
     "build": "vite build",
+    "build:gh-pages": "vite build --base=/AILifeLog/",
     "lint": "eslint .",
     "preview": "vite preview"
   },

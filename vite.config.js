@@ -7,7 +7,7 @@ export default defineConfig({
   define: {
     "import.meta.env.VITE_API_BASE_URL": JSON.stringify(
       process.env.VITE_API_BASE_URL || process.env.NODE_ENV === "production"
-        ? "https://ailifelog-production.up.railway.app"
+        ? "https://ailifelog-production-alex.up.railway.app"
         : "http://localhost:4000",
     ),
   },

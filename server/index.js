@@ -18,7 +18,8 @@ app.use((req, _res, next) => {
 
 // --- Config ---
 const PORT = process.env.PORT || 4000;
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
+const JWT_SECRET =
+  process.env.JWT_SECRET || "your-default-secret-for-development";
 
 // Health check
 app.get("/ping", (req, res) => res.send("pong"));

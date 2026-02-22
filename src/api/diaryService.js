@@ -1,7 +1,7 @@
 // 环境变量优先，否则本地地址
-const API_BASE = import.meta.env?.VITE_API_URL || "http://localhost:4000";
-const ENTRIES_URL = `${API_BASE}/api/entries`;
-const AUTH_URL = `${API_BASE}/api`;
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+const ENTRIES_URL = `${BASE_URL}/api/entries`;
+const AUTH_URL = `${BASE_URL}/api`;
 
 const withAuth = (options = {}) => {
   const token = localStorage.getItem("lifelog_token");

@@ -1,3 +1,4 @@
+// 环境变量优先，否则本地地址
 const API_BASE = import.meta.env?.VITE_API_URL || "http://localhost:4000";
 const ENTRIES_URL = `${API_BASE}/api/entries`;
 const AUTH_URL = `${API_BASE}/api`;

@@ -43,12 +43,16 @@ const Editor = ({ entry, onSave, onCancel }) => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto bg-white min-h-[80vh] p-8 rounded-2xl shadow-lg border border-gray-100 relative">
+    <div
+      className="max-w-3xl mx-auto bg-white min-h-[80vh] p-8 rounded-2xl shadow-lg border border-gray-100 relative"
+      data-testid="editor-container"
+    >
       {/* 顶部操作栏 */}
       <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-100">
         <button
           onClick={onCancel}
           className="text-gray-500 hover:text-gray-800 px-3 py-1 rounded hover:bg-gray-100"
+          data-testid="cancel-btn"
         >
           取消
         </button>
@@ -58,6 +62,7 @@ const Editor = ({ entry, onSave, onCancel }) => {
         <button
           onClick={handleSave}
           className="bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800 shadow-lg shadow-gray-200/50 transition-all"
+          data-testid="save-btn"
         >
           保存日记
         </button>
@@ -69,6 +74,7 @@ const Editor = ({ entry, onSave, onCancel }) => {
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
+          data-testid="date-input"
           className="block text-gray-500 font-medium bg-transparent outline-none"
         />
         <input
@@ -76,17 +82,22 @@ const Editor = ({ entry, onSave, onCancel }) => {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="今日标题..."
+          data-testid="title-input"
           className="w-full text-4xl font-bold text-gray-800 placeholder-gray-300 outline-none bg-transparent"
         />
       </div>
 
       {/* 动态内容块区域 */}
-      <div className="space-y-6 mb-12">
+      <div className="space-y-6 mb-12" data-testid="blocks-list">
         {blocks.map((block, index) => {
           const tagStyle =
             TAG_OPTIONS.find((t) => t.id === block.tag) || TAG_OPTIONS[0];
           return (
-            <div key={block.id} className="group relative">
+            <div
+              key={block.id}
+              className="group relative"
+              data-testid="content-block"
+            >
               <div className="flex items-center justify-between mb-2">
                 <span
                   className={`text-xs px-2 py-1 rounded font-medium ${tagStyle.color}`}
@@ -95,6 +106,7 @@ const Editor = ({ entry, onSave, onCancel }) => {
                 </span>
                 <button
                   onClick={() => removeBlock(block.id)}
+                  data-testid={`remove-block-${index}`}
                   className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
                   title="删除此块"
                 >
@@ -103,6 +115,7 @@ const Editor = ({ entry, onSave, onCancel }) => {
               </div>
               <textarea
                 value={block.content}
+                data-testid={`block-textarea-${index}`}
                 onChange={(e) => updateBlockContent(block.id, e.target.value)}
                 placeholder={`记录你的${tagStyle.label.split(" ")[1]}...`}
                 className="w-full p-4 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-gray-200 outline-none resize-none text-gray-700 leading-relaxed transition-all"
@@ -119,6 +132,7 @@ const Editor = ({ entry, onSave, onCancel }) => {
         {TAG_OPTIONS.map((tag) => (
           <button
             key={tag.id}
+            data-testid={`add-tag-${tag.id}`}
             onClick={() => addBlock(tag.id)}
             className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:border-gray-300 transition-all text-gray-600 whitespace-nowrap"
           >

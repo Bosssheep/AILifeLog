@@ -11,17 +11,19 @@ import fs from "fs";
 const app = express();
 
 // CORS 配置 - 支持 GitHub Pages 和本地开发
-app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "http://localhost:4000",
-    "https://bosssheep.github.io",
-    "https://ailifelog-production-alex.up.railway.app"
-  ],
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:4000",
+      "https://bosssheep.github.io",
+      "https://ailifelog-production-alex.up.railway.app",
+    ],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
 
 app.use(express.json());
 app.use((req, _res, next) => {
@@ -135,9 +137,13 @@ app.post("/admin/migrate", async (req, res) => {
 
 // --- Helpers ---
 const createToken = (user) =>
-  jwt.sign({ sub: user.id, username: user.username }, JWT_SECRET, {
-    expiresIn: "7d",
-  });
+  jwt.sign(
+    { sub: user.id, username: user.username, isAdmin: user.isAdmin || false },
+    JWT_SECRET,
+    {
+      expiresIn: "7d",
+    },
+  );
 
 const authMiddleware = (req, res, next) => {
   const auth = req.headers.authorization || "";
@@ -145,7 +151,11 @@ const authMiddleware = (req, res, next) => {
   if (!token) return res.status(401).json({ message: "未授权：缺少令牌" });
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    req.user = { id: payload.sub, username: payload.username };
+    req.user = {
+      id: payload.sub,
+      username: payload.username,
+      isAdmin: payload.isAdmin || false,
+    };
     next();
   } catch {
     return res.status(401).json({ message: "未授权：令牌无效或过期" });
@@ -176,10 +186,238 @@ app.post("/api/login", async (req, res) => {
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return res.status(401).json({ message: "用户名或密码错误" });
   const token = createToken(user);
-  return res.json({ token, user: { id: user.id, username: user.username } });
+  return res.json({
+    token,
+    user: {
+      id: user.id,
+      username: user.username,
+      isAdmin: user.isAdmin || false,
+    },
+  });
+});
+
+// --- Admin Routes ---
+// 管理员注册（首次使用）
+app.post("/api/admin/register", async (req, res) => {
+  const { username, password, adminKey } = req.body || {};
+
+  // 简单的管理员密钥验证（生产环境应该更复杂）
+  const ADMIN_KEY = process.env.ADMIN_KEY || "lifelog-admin-2024";
+  if (adminKey !== ADMIN_KEY) {
+    return res.status(403).json({ message: "管理员密钥错误" });
+  }
+
+  if (!username || !password) {
+    return res.status(400).json({ message: "用户名与密码必填" });
+  }
+
+  const exists = usersDb.data.users.find((u) => u.username === username);
+  if (exists) return res.status(409).json({ message: "用户名已存在" });
+
+  const id = crypto.randomUUID();
+  const hash = await bcrypt.hash(password, 10);
+  usersDb.data.users.push({ id, username, passwordHash: hash, isAdmin: true });
+  await usersDb.write();
+  await getUserEntriesDb(id);
+
+  return res.status(201).json({ id, username, isAdmin: true });
+});
+
+// 管理员登录
+app.post("/api/admin/login", async (req, res) => {
+  const { username, password } = req.body || {};
+  const user = usersDb.data.users.find(
+    (u) => u.username === username && u.isAdmin,
+  );
+  if (!user) return res.status(401).json({ message: "管理员用户名或密码错误" });
+  const ok = await bcrypt.compare(password, user.passwordHash);
+  if (!ok) return res.status(401).json({ message: "管理员用户名或密码错误" });
+  const token = createToken(user);
+  return res.json({
+    token,
+    user: { id: user.id, username: user.username, isAdmin: true },
+  });
 });
 
 // --- Entries Routes (Protected) ---
+// --- Admin User Management Routes ---
+// 获取所有用户（管理员）
+app.get("/api/admin/users", authMiddleware, async (req, res) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ message: "需要管理员权限" });
+  }
+  const users = usersDb.data.users.map(({ passwordHash, ...user }) => user);
+  return res.json(users);
+});
+
+// 创建新用户（管理员）
+app.post("/api/admin/users", authMiddleware, async (req, res) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ message: "需要管理员权限" });
+  }
+  const { username, password } = req.body || {};
+  if (!username || !password) {
+    return res.status(400).json({ message: "用户名与密码必填" });
+  }
+  const exists = usersDb.data.users.find((u) => u.username === username);
+  if (exists) return res.status(409).json({ message: "用户名已存在" });
+  const id = crypto.randomUUID();
+  const hash = await bcrypt.hash(password, 10);
+  usersDb.data.users.push({ id, username, passwordHash: hash });
+  await usersDb.write();
+  await getUserEntriesDb(id);
+  return res.status(201).json({ id, username });
+});
+
+// 删除用户（管理员）
+app.delete("/api/admin/users/:id", authMiddleware, async (req, res) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ message: "需要管理员权限" });
+  }
+  const userId = req.params.id;
+  if (userId === req.user.id) {
+    return res.status(400).json({ message: "不能删除自己的账号" });
+  }
+  const userIndex = usersDb.data.users.findIndex((u) => u.id === userId);
+  if (userIndex === -1) {
+    return res.status(404).json({ message: "用户不存在" });
+  }
+  usersDb.data.users.splice(userIndex, 1);
+  await usersDb.write();
+  // 删除用户数据目录
+  const userDir = path.join(usersDir, userId);
+  if (fs.existsSync(userDir)) {
+    fs.rmSync(userDir, { recursive: true, force: true });
+  }
+  return res.json({ message: "用户已删除" });
+});
+
+// 重置用户密码（管理员）
+app.put("/api/admin/users/:id/password", authMiddleware, async (req, res) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ message: "需要管理员权限" });
+  }
+  const userId = req.params.id;
+  const { password } = req.body;
+  if (!password) {
+    return res.status(400).json({ message: "新密码必填" });
+  }
+  const user = usersDb.data.users.find((u) => u.id === userId);
+  if (!user) {
+    return res.status(404).json({ message: "用户不存在" });
+  }
+  user.passwordHash = await bcrypt.hash(password, 10);
+  await usersDb.write();
+  return res.json({ message: "密码已重置" });
+});
+
+// 获取所有用户数据（管理员备份）
+app.get("/api/admin/backup", authMiddleware, async (req, res) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ message: "需要管理员权限" });
+  }
+
+  const backup = {
+    timestamp: new Date().toISOString(),
+    users: usersDb.data.users.map(({ passwordHash, ...user }) => user),
+    userData: {},
+  };
+
+  // 获取所有用户的数据
+  for (const user of usersDb.data.users) {
+    try {
+      const edb = await getUserEntriesDb(user.id);
+      backup.userData[user.id] = edb.data.entries || [];
+    } catch (err) {
+      console.error(`获取用户 ${user.username} 数据失败:`, err);
+      backup.userData[user.id] = [];
+    }
+  }
+
+  return res.json(backup);
+});
+
+// 恢复数据（管理员）
+app.post("/api/admin/restore", authMiddleware, async (req, res) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ message: "需要管理员权限" });
+  }
+
+  const { users, userData } = req.body;
+  if (!users || !userData) {
+    return res.status(400).json({ message: "备份数据格式错误" });
+  }
+
+  // 确认恢复操作
+  if (!req.body.confirm) {
+    return res.status(400).json({
+      message:
+        "此操作将覆盖所有现有数据，请在请求体中添加 'confirm: true' 确认",
+    });
+  }
+
+  try {
+    // 备份当前数据
+    const currentBackup = {
+      timestamp: new Date().toISOString(),
+      users: usersDb.data.users.map(({ passwordHash, ...user }) => user),
+      userData: {},
+    };
+
+    for (const user of usersDb.data.users) {
+      try {
+        const edb = await getUserEntriesDb(user.id);
+        currentBackup.userData[user.id] = edb.data.entries || [];
+      } catch {
+        currentBackup.userData[user.id] = [];
+      }
+    }
+
+    // 保存当前备份到文件
+    const backupFile = path.join(dataDir, `backup_${Date.now()}.json`);
+    fs.writeFileSync(backupFile, JSON.stringify(currentBackup, null, 2));
+
+    // 清空现有用户（保留管理员权限）
+    const adminUsers = usersDb.data.users.filter((u) => u.isAdmin);
+    usersDb.data.users = adminUsers;
+
+    // 恢复用户
+    for (const user of users) {
+      if (!adminUsers.find((a) => a.id === user.id)) {
+        usersDb.data.users.push({
+          id: user.id,
+          username: user.username,
+          passwordHash: user.passwordHash || (await bcrypt.hash("123456", 10)), // 默认密码
+          isAdmin: user.isAdmin || false,
+        });
+      }
+    }
+
+    await usersDb.write();
+
+    // 恢复用户数据
+    for (const [userId, entries] of Object.entries(userData)) {
+      try {
+        const edb = await getUserEntriesDb(userId);
+        edb.data.entries = entries || [];
+        await edb.write();
+      } catch (err) {
+        console.error(`恢复用户 ${userId} 数据失败:`, err);
+      }
+    }
+
+    return res.json({
+      message: "数据恢复成功",
+      backupFile: backupFile,
+      restoredUsers: users.length,
+      restoredData: Object.keys(userData).length,
+    });
+  } catch (err) {
+    console.error("数据恢复失败:", err);
+    return res.status(500).json({ message: "数据恢复失败: " + err.message });
+  }
+});
+
 app.get("/api/entries", authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const edb = await getUserEntriesDb(userId);

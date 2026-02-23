@@ -14,12 +14,17 @@ const Auth = ({ onAuthed }) => {
     setLoading(true);
     try {
       if (mode === "register") {
+        console.log("[Auth] 开始注册，用户名:", username);
         await diaryService.register(username, password);
+        console.log("[Auth] 注册成功，开始登录");
       }
+      console.log("[Auth] 开始登录，用户名:", username);
       await diaryService.login(username, password);
+      console.log("[Auth] 登录成功");
       onAuthed();
-    } catch {
-      alert(mode === "login" ? "登录失败" : "注册失败");
+    } catch (error) {
+      console.error("[Auth] 登录/注册失败:", error.message);
+      alert(`${mode === "login" ? "登录" : "注册"}失败: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -28,10 +33,13 @@ const Auth = ({ onAuthed }) => {
   const handleDemoLogin = async () => {
     setLoading(true);
     try {
+      console.log("[Demo] 开始测试账号登录，用户名:", DEMO_USERNAME);
       await diaryService.login(DEMO_USERNAME, DEMO_PASSWORD);
+      console.log("[Demo] 测试账号登录成功");
       onAuthed();
-    } catch {
-      alert("测试账号登录失败，请联系管理员");
+    } catch (error) {
+      console.error("[Demo] 测试账号登录失败:", error.message);
+      alert(`测试账号登录失败: ${error.message}`);
     } finally {
       setLoading(false);
     }

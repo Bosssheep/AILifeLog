@@ -43,6 +43,115 @@ const diaryService = {
     localStorage.setItem("lifelog_user", JSON.stringify(data.user));
     return data;
   },
+
+  // 管理员注册
+  adminRegister: async (username, password, adminKey) => {
+    const res = await fetch(`${AUTH_URL}/admin/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password, adminKey }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || "管理员注册失败");
+    }
+    return res.json();
+  },
+
+  // 管理员登录
+  adminLogin: async (username, password) => {
+    const res = await fetch(`${AUTH_URL}/admin/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || "管理员登录失败");
+    }
+    const data = await res.json();
+    localStorage.setItem("lifelog_token", data.token);
+    localStorage.setItem("lifelog_user", JSON.stringify(data.user));
+    return data;
+  },
+
+  // 获取所有用户（管理员）
+  getAllUsers: async () => {
+    const res = await fetch(`${AUTH_URL}/admin/users`, withAuth());
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || "获取用户列表失败");
+    }
+    return res.json();
+  },
+
+  // 创建新用户（管理员）
+  createUser: async (username, password) => {
+    const res = await fetch(`${AUTH_URL}/admin/users`, {
+      method: "POST",
+      ...withAuth({
+        body: JSON.stringify({ username, password }),
+      }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || "创建用户失败");
+    }
+    return res.json();
+  },
+
+  // 删除用户（管理员）
+  deleteUser: async (userId) => {
+    const res = await fetch(`${AUTH_URL}/admin/users/${userId}`, {
+      method: "DELETE",
+      ...withAuth(),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || "删除用户失败");
+    }
+    return res.json();
+  },
+
+  // 重置用户密码（管理员）
+  resetUserPassword: async (userId, password) => {
+    const res = await fetch(`${AUTH_URL}/admin/users/${userId}/password`, {
+      method: "PUT",
+      ...withAuth({
+        body: JSON.stringify({ password }),
+      }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || "重置密码失败");
+    }
+    return res.json();
+  },
+
+  // 备份所有数据（管理员）
+  backupAllData: async () => {
+    const res = await fetch(`${AUTH_URL}/admin/backup`, withAuth());
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || "备份失败");
+    }
+    return res.json();
+  },
+
+  // 恢复数据（管理员）
+  restoreData: async (backupData) => {
+    const res = await fetch(`${AUTH_URL}/admin/restore`, {
+      method: "POST",
+      ...withAuth({
+        body: JSON.stringify({ ...backupData, confirm: true }),
+      }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || "恢复失败");
+    }
+    return res.json();
+  },
   logout: () => {
     localStorage.removeItem("lifelog_token");
     localStorage.removeItem("lifelog_user");

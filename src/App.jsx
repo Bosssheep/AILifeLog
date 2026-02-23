@@ -10,17 +10,21 @@ import EntryList from "./components/EntryList";
 import TagView from "./components/TagView";
 import DetailView from "./components/DetailView";
 import Auth from "./components/Auth";
+import AdminAuth from "./components/AdminAuth";
+import AdminDashboard from "./components/AdminDashboard";
 import CalendarView from "./components/CalendarView";
 import diaryService from "./api/diaryService";
 import { generateId } from "./utils/helpers";
 
 // 4. 主程序
 const App = () => {
-  const [view, setView] = useState("list"); // list, edit, tag
+  const [view, setView] = useState("list"); // list, edit, tag, admin
   const [entries, setEntries] = useState([]);
   const [currentEntry, setCurrentEntry] = useState(null);
   const [activeTag, setActiveTag] = useState(null);
   const [authed, setAuthed] = useState(!!localStorage.getItem("lifelog_token"));
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminAuth, setShowAdminAuth] = useState(false);
 
   // 1. 获取数据
   const fetchEntries = async () => {
@@ -54,6 +58,12 @@ const App = () => {
   useEffect(() => {
     if (authed) {
       fetchEntries();
+      // 检查是否是管理员
+      const user = localStorage.getItem("lifelog_user");
+      if (user) {
+        const userData = JSON.parse(user);
+        setIsAdmin(userData.isAdmin || false);
+      }
     }
   }, [authed]);
 
@@ -189,12 +199,32 @@ const App = () => {
   return (
     <div className="min-h-screen pb-10">
       {!authed && (
-        <Auth
-          onAuthed={() => {
-            setAuthed(true);
-            setView("list");
-          }}
-        />
+        <>
+          {!showAdminAuth ? (
+            <Auth
+              onAuthed={() => {
+                setAuthed(true);
+                setView("list");
+              }}
+            />
+          ) : (
+            <AdminAuth
+              onAuthed={() => {
+                setAuthed(true);
+                setIsAdmin(true);
+                setView("admin");
+              }}
+            />
+          )}
+          <div className="text-center mt-4">
+            <button
+              onClick={() => setShowAdminAuth(!showAdminAuth)}
+              className="text-blue-600 hover:text-blue-800 underline text-sm"
+            >
+              {showAdminAuth ? "返回普通用户登录" : "管理员登录"}
+            </button>
+          </div>
+        </>
       )}
       {authed && (
         <>
@@ -270,6 +300,16 @@ const App = () => {
 
                   {/* 3. 功能按钮组 */}
                   <div className="flex items-center gap-2">
+                    {isAdmin && (
+                      <button
+                        onClick={() => setView("admin")}
+                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1"
+                        title="管理员控制台"
+                      >
+                        <i className="fas fa-cog text-xs"></i>
+                        <span className="hidden sm:inline">管理</span>
+                      </button>
+                    )}
                     <button
                       onClick={() => startEdit()}
                       className="bg-black hover:bg-gray-800 text-white px-3 md:px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 shadow-lg shadow-gray-200"
@@ -299,6 +339,7 @@ const App = () => {
                       onClick={() => {
                         diaryService.logout();
                         setAuthed(false);
+                        setIsAdmin(false);
                         setEntries([]);
                         setView("list");
                       }}
@@ -358,6 +399,8 @@ const App = () => {
                 onEdit={() => setView("edit")} // 从详情页点编辑，再切到编辑器
               />
             )}
+            {/*  当 view 等于 "admin" 时，渲染管理员控制台*/}
+            {view === "admin" && <AdminDashboard />}
           </main>
         </>
       )}

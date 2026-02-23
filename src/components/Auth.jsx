@@ -2,7 +2,9 @@ import { useState } from "react";
 import diaryService from "../api/diaryService";
 
 const Auth = ({ onAuthed }) => {
-  const [mode, setMode] = useState("login"); // login | register
+  const [mode, setMode] = useState("login"); // login | register | demo
+  const DEMO_USERNAME = "testuser";
+  const DEMO_PASSWORD = "test123";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,49 +25,90 @@ const Auth = ({ onAuthed }) => {
     }
   };
 
+  const handleDemoLogin = async () => {
+    setLoading(true);
+    try {
+      await diaryService.login(DEMO_USERNAME, DEMO_PASSWORD);
+      onAuthed();
+    } catch {
+      alert("测试账号登录失败，请联系管理员");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-sm mx-auto mt-24 p-6 border rounded-xl shadow-sm">
       <h2 className="text-xl font-bold mb-4">
-        {mode === "login" ? "登录 LifeLog" : "注册 LifeLog"}
+        {mode === "login"
+          ? "登录 LifeLog"
+          : mode === "demo"
+            ? "试用 LifeLog"
+            : "注册 LifeLog"}
       </h2>
-      <form onSubmit={submit} className="space-y-3">
-        <input
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          className="w-full border rounded-lg px-3 py-2"
-          placeholder="用户名"
-        />
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full border rounded-lg px-3 py-2"
-          placeholder="密码"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-black text-white rounded-lg py-2"
-        >
-          {loading ? "提交中..." : mode === "login" ? "登录" : "注册并登录"}
-        </button>
-      </form>
-      <div className="mt-3 text-sm text-center">
-        {mode === "login" ? (
+      {mode === "demo" ? (
+        <div className="space-y-3">
+          <div className="p-4 bg-blue-50 rounded-lg text-sm text-blue-800">
+            <p className="font-semibold mb-2">测试账号信息：</p>
+            <p>
+              用户名：
+              <code className="bg-blue-100 px-1 rounded">{DEMO_USERNAME}</code>
+            </p>
+            <p>
+              密码：
+              <code className="bg-blue-100 px-1 rounded">{DEMO_PASSWORD}</code>
+            </p>
+          </div>
           <button
-            onClick={() => setMode("register")}
-            className="text-gray-600 underline"
+            onClick={handleDemoLogin}
+            disabled={loading}
+            className="w-full bg-blue-600 text-white rounded-lg py-2 hover:bg-blue-700 disabled:opacity-50"
           >
-            没有账号？注册
+            {loading ? "登录中..." : "一键登录测试账号"}
           </button>
-        ) : (
+        </div>
+      ) : (
+        <form onSubmit={submit} className="space-y-3">
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="w-full border rounded-lg px-3 py-2"
+            placeholder="用户名"
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full border rounded-lg px-3 py-2"
+            placeholder="密码"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-black text-white rounded-lg py-2"
+          >
+            {loading ? "提交中..." : mode === "login" ? "登录" : "注册并登录"}
+          </button>
+        </form>
+      )}
+      <div className="mt-3 text-sm text-center space-y-2">
+        {mode === "login" ? (
+          <>
+            <button
+              onClick={() => setMode("demo")}
+              className="block w-full text-blue-600 underline"
+            >
+              想试用？使用测试账号
+            </button>
+          </>
+        ) : mode === "demo" ? (
           <button
             onClick={() => setMode("login")}
             className="text-gray-600 underline"
           >
             已有账号？去登录
           </button>
-        )}
+        ) : null}
       </div>
     </div>
   );

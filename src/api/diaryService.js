@@ -1,18 +1,25 @@
+// 这是 前端的服务层 ，负责与后端 API 通信。它封装了所有的 HTTP 请求。
+
+// 1. 基础配置
 // 环境变量优先，否则本地地址
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 const ENTRIES_URL = `${BASE_URL}/api/entries`;
 const AUTH_URL = `${BASE_URL}/api`;
 
+// 2. 认证辅助函数
 const withAuth = (options = {}) => {
   const token = localStorage.getItem("lifelog_token");
+  console.log("[Auth] 获取到的token:", token ? "存在" : "不存在");
   const headers = {
     "Content-Type": "application/json",
     ...(options.headers || {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+  console.log("[Auth] 请求头:", headers);
   return { ...options, headers };
 };
 
+// 3. 服务对象
 const diaryService = {
   // 登录/注册
   register: async (username, password) => {
@@ -43,9 +50,15 @@ const diaryService = {
 
   // 查：获取全部
   getAll: async () => {
+    console.log("[API] 开始获取数据，URL:", ENTRIES_URL);
     const response = await fetch(ENTRIES_URL, withAuth());
-    if (!response.ok) throw new Error("获取失败");
+    console.log("[API] 响应状态:", response.status, response.statusText);
+    if (!response.ok) {
+      console.error("[API] 获取数据失败，状态码:", response.status);
+      throw new Error(`获取失败: ${response.status} ${response.statusText}`);
+    }
     const data = await response.json();
+    console.log("[API] 获取到数据条数:", data.length);
     return data.sort((a, b) => new Date(b.date) - new Date(a.date));
   },
 

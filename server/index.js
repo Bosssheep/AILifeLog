@@ -9,7 +9,20 @@ import path from "path";
 import fs from "fs";
 
 const app = express();
-app.use(cors());
+
+// CORS 配置 - 支持 GitHub Pages 和本地开发
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    "http://localhost:4000",
+    "https://bosssheep.github.io",
+    "https://ailifelog-production-alex.up.railway.app"
+  ],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
 app.use(express.json());
 app.use((req, _res, next) => {
   console.log(`[REQ] ${req.method} ${req.path}`);

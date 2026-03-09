@@ -52,7 +52,29 @@ const App = () => {
     }
   };
 
-  // 3. 删除逻辑（现由各视图组件内部触发）
+  // 3. 删除逻辑
+  const deleteEntry = async (id) => {
+    try {
+      const ok = await diaryService.delete(id);
+      if (!ok) throw new Error("删除失败");
+      await fetchEntries(); // 刷新
+      setView("list");
+      setCurrentEntry(null);
+    } catch (err) {
+      alert(err.message || "删除失败");
+    }
+  };
+
+  // 4. 手动更新 AI 回信
+  const updateAIReply = async (id) => {
+    try {
+      await diaryService.updateAIReply(id);
+      // 由于是异步触发，前端提示用户即可
+      alert("💌 信件已寄出，小含读完就会回信啦~");
+    } catch {
+      alert("寄信失败，请检查网络");
+    }
+  };
 
   // 页面初始化时调用
   useEffect(() => {
@@ -397,6 +419,8 @@ const App = () => {
                 entry={currentEntry}
                 onBack={() => setView("list")}
                 onEdit={() => setView("edit")} // 从详情页点编辑，再切到编辑器
+                onDelete={deleteEntry}
+                onSendToXiaohan={updateAIReply}
               />
             )}
             {/*  当 view 等于 "admin" 时，渲染管理员控制台*/}

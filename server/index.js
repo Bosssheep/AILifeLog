@@ -7,6 +7,10 @@ import { Low } from "lowdb";
 import { JSONFile } from "lowdb/node";
 import path from "path";
 import fs from "fs";
+import dotenv from "dotenv";
+import { generateReply } from "./aiService.js";
+
+dotenv.config();
 
 const app = express();
 
@@ -418,6 +422,46 @@ app.post("/api/admin/restore", authMiddleware, async (req, res) => {
   }
 });
 
+// --- 辅助函数：异步触发并保存 AI 回信 ---
+const triggerAIReply = async (userId, entryId) => {
+  try {
+    // 延迟一小会儿，确保主进程写入已完成（虽然 runSerial 已经保证了，但这样更稳健）
+    const edb = await getUserEntriesDb(userId);
+    const entryIdx = edb.data.entries.findIndex((e) => e.id === entryId);
+    if (entryIdx === -1) return;
+
+    const entry = edb.data.entries[entryIdx];
+    const aiResult = await generateReply(entry.blocks || [], entry.date);
+
+    if (aiResult) {
+      await runSerial(userId, async () => {
+        const edbUpdate = await getUserEntriesDb(userId);
+        const idx = edbUpdate.data.entries.findIndex((e) => e.id === entryId);
+        if (idx !== -1) {
+          const blocksWithoutReply = (
+            edbUpdate.data.entries[idx].blocks || []
+          ).filter((b) => b.tag !== "reply");
+          edbUpdate.data.entries[idx].blocks = [
+            ...blocksWithoutReply,
+            {
+              id: `reply-${crypto.randomUUID()}`,
+              tag: "reply",
+              content: aiResult.content,
+              metadata: aiResult.metadata,
+            },
+          ];
+          await edbUpdate.write();
+          console.log(
+            `[AI-Python] 异步成功为用户 ${userId} 的日记 ${entryId} 更新回信`,
+          );
+        }
+      });
+    }
+  } catch (error) {
+    console.error(`[AI-Python] 异步更新回信失败:`, error);
+  }
+};
+
 app.get("/api/entries", authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const edb = await getUserEntriesDb(userId);
@@ -431,6 +475,7 @@ app.post("/api/entries", authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const entry = req.body || {};
   if (!entry.date) return res.status(400).json({ message: "缺少日期" });
+
   const id = entry.id || crypto.randomUUID();
   const newEntry = { ...entry, id };
   await runSerial(userId, async () => {
@@ -438,22 +483,41 @@ app.post("/api/entries", authMiddleware, async (req, res) => {
     edb.data.entries.push(newEntry);
     await edb.write();
   });
+
   return res.status(201).json(newEntry);
 });
 
 app.put("/api/entries/:id", authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const { id } = req.params;
+  const entry = req.body || {};
+
   const edb = await getUserEntriesDb(userId);
   const idx = edb.data.entries.findIndex((e) => e.id === id);
   if (idx === -1) return res.status(404).json({ message: "未找到或无权限" });
   let updated;
   await runSerial(userId, async () => {
-    edb.data.entries[idx] = { ...edb.data.entries[idx], ...req.body, id };
+    edb.data.entries[idx] = { ...edb.data.entries[idx], ...entry, id };
     updated = edb.data.entries[idx];
     await edb.write();
   });
+
   return res.json(updated);
+});
+
+// 手动触发回信更新
+app.post("/api/entries/:id/ai-reply", authMiddleware, async (req, res) => {
+  const userId = req.user.id;
+  const { id } = req.params;
+
+  const edb = await getUserEntriesDb(userId);
+  const exists = edb.data.entries.find((e) => e.id === id);
+  if (!exists) return res.status(404).json({ message: "日记未找到" });
+
+  // 异步触发回信逻辑
+  triggerAIReply(userId, id);
+
+  return res.json({ message: "已开始重新生成回信" });
 });
 
 app.delete("/api/entries/:id", authMiddleware, async (req, res) => {
@@ -472,8 +536,11 @@ app.delete("/api/entries/:id", authMiddleware, async (req, res) => {
 // --- Static hosting for production builds (optional) ---
 const distDir = path.resolve(process.cwd(), "dist");
 if (fs.existsSync(distDir)) {
+  console.log(`[Static] Serving dist from ${distDir}`);
+  // 静态文件服务应该在 API 路由之后
   app.use(express.static(distDir));
-  app.get("*", (req, res) => {
+  // 只有非 /api 开头的请求才回退到 index.html
+  app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(path.join(distDir, "index.html"));
   });
 }

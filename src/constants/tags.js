@@ -30,4 +30,9 @@ export const TAG_OPTIONS = [
     label: "📚 阅读/电影",
     color: "bg-purple-100 text-purple-800 border-purple-200",
   },
+  {
+    id: "reply",
+    label: "💌 小含的回信",
+    color: "bg-indigo-50 text-indigo-700 border-indigo-100 italic font-serif",
+  },
 ];

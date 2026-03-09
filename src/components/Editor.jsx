@@ -38,7 +38,8 @@ const Editor = ({ entry, onSave, onCancel }) => {
       date,
       // 如果是老条目，保留原有的 lastModified；如果是新条目，才生成新时间
       lastModified: entry ? entry.lastModified : new Date().toISOString(),
-      blocks,
+      // 过滤掉 AI 的回信 block，不让用户手动保存 AI 的回信（后端会自动生成）
+      blocks: blocks.filter(b => b.tag !== 'reply'),
     });
   };
 
@@ -89,47 +90,49 @@ const Editor = ({ entry, onSave, onCancel }) => {
 
       {/* 动态内容块区域 */}
       <div className="space-y-6 mb-12" data-testid="blocks-list">
-        {blocks.map((block, index) => {
-          const tagStyle =
-            TAG_OPTIONS.find((t) => t.id === block.tag) || TAG_OPTIONS[0];
-          return (
-            <div
-              key={block.id}
-              className="group relative"
-              data-testid="content-block"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span
-                  className={`text-xs px-2 py-1 rounded font-medium ${tagStyle.color}`}
-                >
-                  {tagStyle.label}
-                </span>
-                <button
-                  onClick={() => removeBlock(block.id)}
-                  data-testid={`remove-block-${index}`}
-                  className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                  title="删除此块"
-                >
-                  <i className="fas fa-trash-alt"></i>
-                </button>
+        {blocks
+          .filter((block) => block.tag !== "reply") // 不显示“小含的回信”内容
+          .map((block, index) => {
+            const tagStyle =
+              TAG_OPTIONS.find((t) => t.id === block.tag) || TAG_OPTIONS[0];
+            return (
+              <div
+                key={block.id}
+                className="group relative"
+                data-testid="content-block"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span
+                    className={`text-xs px-2 py-1 rounded font-medium ${tagStyle.color}`}
+                  >
+                    {tagStyle.label}
+                  </span>
+                  <button
+                    onClick={() => removeBlock(block.id)}
+                    data-testid={`remove-block-${index}`}
+                    className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                    title="删除此块"
+                  >
+                    <i className="fas fa-trash-alt"></i>
+                  </button>
+                </div>
+                <textarea
+                  value={block.content}
+                  data-testid={`block-textarea-${index}`}
+                  onChange={(e) => updateBlockContent(block.id, e.target.value)}
+                  placeholder={`记录你的${tagStyle.label.split(" ")[1]}...`}
+                  className="w-full p-4 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-gray-200 outline-none resize-none text-gray-700 leading-relaxed transition-all"
+                  rows="4"
+                />
               </div>
-              <textarea
-                value={block.content}
-                data-testid={`block-textarea-${index}`}
-                onChange={(e) => updateBlockContent(block.id, e.target.value)}
-                placeholder={`记录你的${tagStyle.label.split(" ")[1]}...`}
-                className="w-full p-4 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-gray-200 outline-none resize-none text-gray-700 leading-relaxed transition-all"
-                rows="4"
-              />
-            </div>
-          );
-        })}
+            );
+          })}
       </div>
 
       {/* 添加新块按钮 */}
       <div className="sticky bottom-4 bg-white/90 backdrop-blur border border-gray-100 shadow-xl rounded-xl p-3 flex gap-2 justify-center items-center">
         <span className="text-xs text-gray-400 font-bold mr-2">添加模块:</span>
-        {TAG_OPTIONS.map((tag) => (
+        {TAG_OPTIONS.filter((tag) => tag.id !== "reply").map((tag) => (
           <button
             key={tag.id}
             data-testid={`add-tag-${tag.id}`}

@@ -15,16 +15,21 @@
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.1.0",
+    "@langchain/core": "^1.1.31",
+    "@langchain/google-genai": "^2.1.24",
+    "bcryptjs": "^2.4.3",
     "chromedriver": "^145.0.0",
     "cors": "^2.8.5",
+    "dotenv": "^17.3.1",
     "express": "^4.21.2",
+    "https-proxy-agent": "^7.0.6",
     "json-server": "^0.17.4",
     "jsonwebtoken": "^9.0.2",
-    "bcryptjs": "^2.4.3",
     "lowdb": "^7.0.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "selenium-webdriver": "^4.40.0"
+    "selenium-webdriver": "^4.40.0",
+    "undici": "^7.22.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

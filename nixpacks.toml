@@ -1,11 +1,14 @@
 [phases.setup]
-nixPkgs = ["python3", "python311Packages.pip", "nodejs"]
+nixPkgs = ["python3Full", "nodejs", "gcc"]
 
 [phases.install]
-cmds = ["npm install", "python3 -m pip install -r requirements.txt"]
+cmds = [
+    "npm install",
+    "python3 -m venv /opt/venv && /opt/venv/bin/pip install -r requirements.txt"
+]
 
 [phases.build]
 cmds = ["npm run build"]
 
 [start]
-cmd = "npm start"
+cmd = "PATH=/opt/venv/bin:$PATH npm start"

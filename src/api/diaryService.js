@@ -208,15 +208,13 @@ const diaryService = {
 
   // 删：删除日记
   delete: async (id) => {
-    const response = await fetch(`${ENTRIES_URL}/${id}`, withAuth({ method: "DELETE" }));
+    const response = await fetch(
+      `${ENTRIES_URL}/${id}`,
+      withAuth({
+        method: "DELETE",
+      }),
+    );
     return response.ok;
-  },
-
-  // 手动更新 AI 回信
-  updateAIReply: async (id) => {
-    const response = await fetch(`${ENTRIES_URL}/${id}/ai-reply`, withAuth({ method: "POST" }));
-    if (!response.ok) throw new Error("触发更新失败");
-    return response.json();
   },
 
   // 批量覆盖数据（用于导入）

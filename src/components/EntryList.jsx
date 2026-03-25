@@ -1,6 +1,6 @@
 import { TAG_OPTIONS } from "../constants/tags";
 import { formatDate } from "../utils/helpers";
-const EntryList = ({ entries, onEdit, onViewTag }) => {
+const EntryList = ({ entries, onEdit }) => {
   if (!entries || entries.length === 0) {
     return (
       <div className="text-center py-20">
@@ -12,29 +12,26 @@ const EntryList = ({ entries, onEdit, onViewTag }) => {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 pb-20">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8 pb-20">
       {entries.map((entry) => (
         <div
           key={entry.id}
           onClick={() => onEdit(entry)}
-          className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md cursor-pointer transition-all group"
+          className="bg-white p-8 rounded-xl border border-slate-200/70 shadow-[0_2px_10px_rgba(15,23,42,0.04)] hover:shadow-[0_8px_24px_rgba(59,130,246,0.10)] hover:-translate-y-0.5 cursor-pointer transition-all duration-300 group min-h-[280px] flex flex-col"
         >
-          <div className="flex justify-between items-start mb-4">
+          <div className="flex justify-between items-start mb-3">
             <div>
-              <div className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1">
+              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.14em] mb-1">
                 {formatDate(entry.date)}
               </div>
-              <h3 className="text-2xl font-bold text-gray-800 group-hover:text-blue-600 transition-colors">
+              <h3 className="text-lg font-semibold text-slate-800 group-hover:text-slate-900 transition-colors line-clamp-1">
                 {entry.title || "无题"}
               </h3>
             </div>
-            <span className="text-gray-300 group-hover:text-blue-400">
-              <i className="fas fa-pen"></i>
-            </span>
           </div>
 
           {/* 缩略内容展示 */}
-          <div className="space-y-3">
+          <div className="space-y-2.5 flex-1">
             {(entry.blocks || []).slice(0, 3).map((block) => {
               if (!block || !block.content?.trim()) return null;
 
@@ -43,37 +40,33 @@ const EntryList = ({ entries, onEdit, onViewTag }) => {
                 color: "bg-gray-100 text-gray-500",
               };
 
-              // 安全解析 Label：如果有空格取第二个，否则取全部
-              const displayLabel = tagInfo.label.includes(" ")
-                ? tagInfo.label.split(" ")[1]
-                : tagInfo.label;
-
               return (
                 <div
                   key={block.id || Math.random()}
-                  className="flex gap-3 items-baseline"
+                  className="flex gap-2.5 items-baseline"
                 >
                   <span
-                    className={`flex-shrink-0 w-2 h-2 rounded-full ${tagInfo.color?.split(" ")[0] || "bg-gray-400"}`}
+                    className={`flex-shrink-0 w-1.5 h-1.5 rounded-full ${tagInfo.color?.split(" ")[0] || "bg-slate-400"}`}
                   ></span>
-                  <p className="text-gray-600 text-sm line-clamp-2 flex-grow">
-                    <span className="font-bold text-gray-400 mr-2 text-xs">
+
+                  <p className="text-slate-600 text-sm line-clamp-2 flex-grow">
+                    {/* <span className="font-semibold text-slate-400 mr-1.5 text-[11px]">
                       [{displayLabel}]
-                    </span>
+                    </span> */}
                     {block.content}
                   </p>
                 </div>
               );
             })}
             {entry.blocks?.length > 3 && (
-              <div className="text-xs text-gray-400 pl-5">
-                ... 还有 {entry.blocks.length - 3} 个内容
+              <div className="text-[11px] text-slate-400 pl-4">
+                ... 
               </div>
             )}
           </div>
 
           {/* 底部标签汇总 */}
-          <div className="mt-4 pt-4 border-t border-gray-50 flex flex-wrap gap-2">
+          <div className="mt-3 pt-3 flex flex-wrap gap-1.5">
             {Array.from(new Set((entry.blocks || []).map((b) => b.tag))).map(
               (tagId) => {
                 const t = TAG_OPTIONS.find((o) => o.id === tagId) || {
@@ -81,16 +74,13 @@ const EntryList = ({ entries, onEdit, onViewTag }) => {
                   color: "bg-gray-100 text-gray-400",
                 };
                 return (
-                  <button
+                  <div
                     key={tagId}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onViewTag(tagId);
-                    }}
-                    className={`text-[10px] px-2 py-0.5 rounded border ${t.color} bg-opacity-30 hover:bg-opacity-100 transition-all`}
+
+                    className={`text-[9px] px-2 py-0.5 rounded-md border ${t.color} bg-opacity-30 hover:bg-opacity-100 transition-all`}
                   >
                     {t.label}
-                  </button>
+                  </div>
                 );
               },
             )}

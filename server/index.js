@@ -250,7 +250,10 @@ app.get("/api/admin/users", authMiddleware, async (req, res) => {
   if (!req.user.isAdmin) {
     return res.status(403).json({ message: "需要管理员权限" });
   }
-  const users = usersDb.data.users.map(({ passwordHash, ...user }) => user);
+  const users = usersDb.data.users.map(({ passwordHash, ...user }) => {
+    void passwordHash;
+    return user;
+  });
   return res.json(users);
 });
 
@@ -323,7 +326,10 @@ app.get("/api/admin/backup", authMiddleware, async (req, res) => {
 
   const backup = {
     timestamp: new Date().toISOString(),
-    users: usersDb.data.users.map(({ passwordHash, ...user }) => user),
+    users: usersDb.data.users.map(({ passwordHash, ...user }) => {
+      void passwordHash;
+      return user;
+    }),
     userData: {},
   };
 
@@ -364,7 +370,10 @@ app.post("/api/admin/restore", authMiddleware, async (req, res) => {
     // 备份当前数据
     const currentBackup = {
       timestamp: new Date().toISOString(),
-      users: usersDb.data.users.map(({ passwordHash, ...user }) => user),
+      users: usersDb.data.users.map(({ passwordHash, ...user }) => {
+        void passwordHash;
+        return user;
+      }),
       userData: {},
     };
 

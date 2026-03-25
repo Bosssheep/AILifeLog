@@ -13,12 +13,13 @@ import Auth from "./components/Auth";
 import AdminAuth from "./components/AdminAuth";
 import AdminDashboard from "./components/AdminDashboard";
 import CalendarView from "./components/CalendarView";
+import SummaryView from "./components/SummaryView";
 import diaryService from "./api/diaryService";
 import { generateId } from "./utils/helpers";
 
 // 4. 主程序
 const App = () => {
-  const [view, setView] = useState("list"); // list, edit, tag, admin
+  const [view, setView] = useState("list"); // list, calendar, summary, edit, tag, detail, admin
   const [entries, setEntries] = useState([]);
   const [currentEntry, setCurrentEntry] = useState(null);
   const [activeTag, setActiveTag] = useState(null);
@@ -71,8 +72,8 @@ const App = () => {
       await diaryService.updateAIReply(id);
       // 由于是异步触发，前端提示用户即可
       alert("💌 信件已寄出，小含读完就会回信啦~");
-    } catch {
-      alert("寄信失败，请检查网络");
+    } catch (err) {
+      alert(err?.message || "寄信失败，请检查网络");
     }
   };
 
@@ -219,7 +220,7 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen pb-10">
+    <div className="min-h-screen bg-[#F4F5F7]">
       {!authed && (
         <>
           {!showAdminAuth ? (
@@ -250,12 +251,10 @@ const App = () => {
       )}
       {authed && (
         <>
-          {/* 侧边栏/导航栏 - 移动端适配为顶部，PC端在侧边会更帅，这里简化为顶部 */}
-          <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 mb-8">
-            <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-              {/* 左侧 Logo 区域 */}
+          <header className="sticky top-0 z-50 bg-white/45 supports-[backdrop-filter]:bg-white/35 backdrop-blur-xl border-b border-white/40 shadow-[0_8px_24px_rgba(15,23,42,0.06)] mb-6">
+            <div className="px-4 md:px-6 h-16 grid grid-cols-[1fr_auto_1fr] items-center">
               <div
-                className="flex items-center gap-3 cursor-pointer group"
+                className="flex items-center gap-3 cursor-pointer group justify-self-start"
                 onClick={() => setView("list")}
               >
                 <div className="bg-black text-white w-8 h-8 rounded-lg flex items-center justify-center font-bold group-hover:rotate-12 transition-transform">
@@ -266,48 +265,129 @@ const App = () => {
                 </h1>
               </div>
 
-              {/* 右侧操作区域：仅在主视图（列表、日历、标签）时显示 */}
-              {(view === "list" ||
-                view === "calendar" ||
-                view === "tag" ||
-                view == "detail") && (
-                <div className="flex items-center gap-3 md:gap-4">
-                  {/* 1. 视图切换器 (Segmented Control) */}
-                  <div className="flex bg-gray-100 p-1 rounded-xl border border-gray-200">
+              <div className="justify-self-center">
+                <div className="hidden md:flex items-center gap-8">
+                  {[
+                    { id: "list", label: "列表" },
+                    { id: "calendar", label: "日历" },
+                    { id: "summary", label: "汇总" },
+                  ].map((item) => (
                     <button
-                      onClick={() => setView("list")}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
-                        view === "list"
-                          ? "bg-white text-black shadow-sm"
-                          : "text-gray-400 hover:text-gray-600"
+                      key={item.id}
+                      onClick={() => setView(item.id)}
+                      className={`text-[18px] font-medium tracking-wide transition-all ${
+                        view === item.id
+                          ? "text-slate-800"
+                          : "text-slate-400 hover:text-slate-600"
                       }`}
-                      title="列表视图"
                     >
-                      <i className="fas fa-list-ul"></i>
-                      <span className="hidden lg:inline">列表</span>
+                      {item.label}
                     </button>
-                    <button
-                      onClick={() => setView("calendar")}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
-                        view === "calendar"
-                          ? "bg-white text-black shadow-sm"
-                          : "text-gray-400 hover:text-gray-600"
-                      }`}
-                      title="日历视图"
-                    >
-                      <i className="fas fa-calendar-alt"></i>
-                      <span className="hidden lg:inline">日历</span>
-                    </button>
-                  </div>
+                  ))}
+                </div>
+              </div>
 
-                  {/* 2. 标签快捷过滤 (仅在较大屏幕显示) */}
-                  <div className="hidden sm:flex gap-1 border-r border-gray-200 pr-3 mr-1">
+              <div className="flex items-center gap-2 md:gap-3 justify-self-end">
+                <div className="md:hidden flex bg-gray-100 p-1 rounded-xl border border-gray-200">
+                  {[
+                    { id: "list", label: "列表" },
+                    { id: "calendar", label: "日历" },
+                    { id: "summary", label: "汇总" },
+                  ].map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => setView(item.id)}
+                      className={`px-2 py-1 rounded-lg text-xs font-bold transition-all ${
+                        view === item.id
+                          ? "bg-white text-black shadow-sm"
+                          : "text-gray-400 hover:text-gray-600"
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+
+                {isAdmin && (
+                  <button
+                    onClick={() => setView("admin")}
+                    className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1"
+                    title="管理员控制台"
+                  >
+                    <i className="fas fa-cog text-xs"></i>
+                    <span className="hidden sm:inline">管理</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => startEdit()}
+                  className="bg-black hover:bg-gray-800 text-white px-3 md:px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 shadow-lg shadow-gray-200"
+                >
+                  <i className="fas fa-plus text-xs"></i>
+                  <span className="hidden sm:inline">写日记</span>
+                </button>
+                <div className="hidden sm:flex gap-1">
+                  <button
+                    onClick={() => handleExportData()}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-800 w-9 h-9 flex items-center justify-center rounded-lg transition-all"
+                    title="导出备份"
+                  >
+                    <i className="fas fa-download text-xs"></i>
+                  </button>
+                  <button
+                    onClick={handleImportData}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-800 w-9 h-9 flex items-center justify-center rounded-lg transition-all"
+                    title="导入备份"
+                  >
+                    <i className="fas fa-upload text-xs"></i>
+                  </button>
+                </div>
+                <button
+                  onClick={() => {
+                    diaryService.logout();
+                    setAuthed(false);
+                    setIsAdmin(false);
+                    setEntries([]);
+                    setView("list");
+                  }}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1.5 rounded-lg text-sm"
+                  title="退出登录"
+                >
+                  退出
+                </button>
+              </div>
+            </div>
+          </header>
+
+          <div className="px-4 md:px-6 pb-8">
+            <main className="max-w-6xl mx-auto">
+            {/* list/tag 都复用同一侧边布局：保证宽度一致、滚动时圆点始终可见 */}
+            {(view === "list" || view === "tag") && (
+              <div className="flex gap-6 items-start">
+                {/* 侧边筛选栏（随滚动保持可见） */}
+                <aside className="hidden lg:block w-10 shrink-0">
+                  <div className="sticky top-24 bg-white/60 supports-[backdrop-filter]:bg-white/35 backdrop-blur-xl border border-white/40 rounded-2xl px-1.5 py-2 flex flex-col gap-2">
+                    {/* 第一个圆点：展示所有卡片（与点“列表”效果一致） */}
+                    <button
+                      onClick={() => {
+                        setActiveTag(null);
+                        setView("list");
+                      }}
+                      className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
+                        view === "list"
+                          ? "bg-gray-200"
+                          : "hover:bg-gray-100"
+                      }`}
+                      title="查看所有卡片"
+                    >
+                      <i className="fas fa-circle text-[6px] text-gray-500"></i>
+                    </button>
+
                     {TAG_OPTIONS.map((tag) => (
                       <button
                         key={tag.id}
                         onClick={() => openTagView(tag.id)}
                         className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
-                          activeTag === tag.id
+                          view === "tag" && activeTag === tag.id
                             ? "bg-gray-200"
                             : "hover:bg-gray-100"
                         }`}
@@ -319,72 +399,21 @@ const App = () => {
                       </button>
                     ))}
                   </div>
+                </aside>
 
-                  {/* 3. 功能按钮组 */}
-                  <div className="flex items-center gap-2">
-                    {isAdmin && (
-                      <button
-                        onClick={() => setView("admin")}
-                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1"
-                        title="管理员控制台"
-                      >
-                        <i className="fas fa-cog text-xs"></i>
-                        <span className="hidden sm:inline">管理</span>
-                      </button>
-                    )}
-                    <button
-                      onClick={() => startEdit()}
-                      className="bg-black hover:bg-gray-800 text-white px-3 md:px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 shadow-lg shadow-gray-200"
-                    >
-                      <i className="fas fa-plus text-xs"></i>
-                      <span className="hidden sm:inline">写日记</span>
-                    </button>
-
-                    {/* 导入/导出隐藏文字，仅保留图标以节省空间 */}
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => handleExportData()}
-                        className="bg-gray-100 hover:bg-gray-200 text-gray-800 w-9 h-9 flex items-center justify-center rounded-lg transition-all"
-                        title="导出备份"
-                      >
-                        <i className="fas fa-download text-xs"></i>
-                      </button>
-                      <button
-                        onClick={handleImportData}
-                        className="bg-gray-100 hover:bg-gray-200 text-gray-800 w-9 h-9 flex items-center justify-center rounded-lg transition-all"
-                        title="导入备份"
-                      >
-                        <i className="fas fa-upload text-xs"></i>
-                      </button>
-                    </div>
-                    <button
-                      onClick={() => {
-                        diaryService.logout();
-                        setAuthed(false);
-                        setIsAdmin(false);
-                        setEntries([]);
-                        setView("list");
-                      }}
-                      className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1.5 rounded-lg text-sm"
-                      title="退出登录"
-                    >
-                      退出
-                    </button>
-                  </div>
+                {/* 保证 list 卡片区域 & tag block 区域宽度/起始位置一致 */}
+                <div className="flex-1 min-w-0">
+                  {view === "list" ? (
+                    <EntryList entries={entries} onEdit={openDetail} />
+                  ) : (
+                    <TagView
+                      entries={entries}
+                      tagId={activeTag}
+                      onClose={() => setView("list")}
+                    />
+                  )}
                 </div>
-              )}
-            </div>
-          </header>
-
-          {/* 用 view 状态来控制页面切换的“单页面视图控制器”，而不是跳转页面 */}
-          <main className="max-w-4xl mx-auto px-4">
-            {/* 当 view 等于 "list" 时，渲染一个EntryList组件 */}
-            {view === "list" && (
-              <EntryList
-                entries={entries}
-                onEdit={openDetail}
-                onViewTag={openTagView}
-              />
+              </div>
             )}
             {/*  当 view 等于 "calendar" 时，渲染一个 CalendarView组件*/}
             {view === "calendar" && (
@@ -397,6 +426,7 @@ const App = () => {
                 onQuickEdit={quickEdit}
               />
             )}
+            {view === "summary" && <SummaryView entries={entries} />}
             {/*  当 view 等于 "edit" 时，渲染一个 Editor组件*/}
             {view === "edit" && (
               <Editor
@@ -405,14 +435,7 @@ const App = () => {
                 onCancel={() => setView("list")}
               />
             )}
-            {/*  当 view 等于 "tag" 时，渲染一个 TagView组件*/}
-            {view === "tag" && (
-              <TagView
-                entries={entries}
-                tagId={activeTag}
-                onClose={() => setView("list")}
-              />
-            )}
+            {/* view === "tag" 已在上面的 list/tag 统一布局中渲染 */}
             {/*  当 view 等于 "tag" 时，渲染一个 DetailView组件*/}
             {view === "detail" && (
               <DetailView
@@ -425,7 +448,8 @@ const App = () => {
             )}
             {/*  当 view 等于 "admin" 时，渲染管理员控制台*/}
             {view === "admin" && <AdminDashboard />}
-          </main>
+            </main>
+          </div>
         </>
       )}
     </div>

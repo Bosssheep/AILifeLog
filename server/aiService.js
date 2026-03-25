@@ -1,6 +1,5 @@
 import { spawn } from "child_process";
 import path from "path";
-import crypto from "crypto";
 
 /**
  * 调用 Python 脚本生成回信

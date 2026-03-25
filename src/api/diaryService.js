@@ -217,6 +217,29 @@ const diaryService = {
     return response.ok;
   },
 
+  // 手动触发 AI 回信更新
+  updateAIReply: async (id) => {
+    const response = await fetch(
+      `${ENTRIES_URL}/${id}/ai-reply`,
+      withAuth({
+        method: "POST",
+      }),
+    );
+
+    if (!response.ok) {
+      let errorMessage = "触发 AI 回信失败";
+      try {
+        const error = await response.json();
+        errorMessage = error.message || errorMessage;
+      } catch {
+        // 响应不是 JSON 时使用默认文案
+      }
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  },
+
   // 批量覆盖数据（用于导入）
   // 注意：json-server 默认不直接支持批量覆盖，所以我们需要循环处理或特殊处理
   importAll: async (newEntries) => {

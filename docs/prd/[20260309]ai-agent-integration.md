@@ -95,3 +95,21 @@ HTTP_PROXY=http://127.0.0.1:8001  # 本地开发可选
 
 - 确保部署环境已安装 `python3` 及相关依赖包（`langchain-google-genai` 等）。
 - 生产环境（如 Railway）建议关闭代理配置。
+
+---
+
+## 6. 情绪评分与 SummaryView 的数据联动（Mood Score）
+
+AI 生成的分析结果会被结构化存入日记条目的 `metadata` 字段中。
+
+前端用于展示的场景主要包括：
+- `detail` 页：回信正文以信封样式呈现（含 AI 分析信息）
+- `summary` 页（`src/components/SummaryView.jsx`）：基于 `reply` block 的情绪分值绘制心情曲线
+
+SummaryView 从 `entry.blocks` 中查找 `tag === "reply"` 的 block，并按如下字段优先级解析分值：
+- `reply.metadata.sentiment.score`
+- `reply.metadata.score`
+- `reply.sentiment.score`
+- `reply.score`
+
+当某个 `entry` 缺少可解析的分值时，该条记录会在聚合计算中被自动忽略，页面仍保持稳定渲染。

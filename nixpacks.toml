@@ -1,10 +1,14 @@
+providers = ["node"] # 强制只使用 Node 提供者，Python 环境由我们手动在 setup 里装
+
 [phases.setup]
-nixPkgs = ["python3Full", "nodejs", "gcc"]
+nixPkgs = ["python3", "nodejs", "gcc"]
 
 [phases.install]
 cmds = [
     "npm install",
-    "python3 -m venv /opt/venv && /opt/venv/bin/pip install -r requirements.txt"
+    "python3 -m venv /opt/venv",
+    "/opt/venv/bin/pip install --upgrade pip",
+    "/opt/venv/bin/pip install -r requirements.txt"
 ]
 
 [phases.build]
